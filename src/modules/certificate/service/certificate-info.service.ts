@@ -26,7 +26,7 @@ import { MailService } from 'src/modules/common/service/email.service';
 
 @Injectable()
 export class CertificateInfoService {
-  private readonly baseUrl: string = process.env.BASE_URL || 'http://localhost:5000';
+  private readonly baseUrl: string = process.env.BACKEND_URL || 'http://localhost:5000';
   constructor(
     @InjectRepository(CertificateInfo)
     private readonly certificateInfoRepository: Repository<CertificateInfo>,

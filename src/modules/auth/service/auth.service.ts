@@ -23,7 +23,7 @@ import { MailService } from 'src/modules/common/service/email.service';
 
 @Injectable()
 export class AuthService {
-    private readonly baseUrl: string = process.env.BASE_URL || 'http://localhost:5000';
+    private readonly baseUrl: string = process.env.BACKEND_URL || 'http://localhost:5000';
 
     constructor(
         @InjectRepository(User)
@@ -199,8 +199,8 @@ export class AuthService {
             }
 
             const token = this.jwtService.sign({ email: user.email });
-            const activationLink = `${this.baseUrl}/api/v1/auth/activate?token=${token}`;
-            await this.mailService.sendActivationEmail(registerDto.email, activationLink);
+           
+            await this.mailService.sendActivationEmail(registerDto.email, token);
 
             await queryRunner.commitTransaction();
 
@@ -230,6 +230,7 @@ export class AuthService {
     }
 
     async activateAccount(token: string): Promise<void> {
+        console.log("llllllllllll")
         try {
             const { email } = this.jwtService.verify(token);
             const user = await this.userRepository.findOne({ where: { email } });

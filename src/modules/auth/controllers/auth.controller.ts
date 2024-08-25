@@ -1,14 +1,16 @@
-import { Controller, Get, Put, Query, Post, Delete, UseGuards, Req, Request, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Put, Query, Post,Res, Delete, UseGuards, Req, Request, Body, BadRequestException } from '@nestjs/common';
 import { AuthService } from '../service/auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RegisterDto } from '../dto/register-user.dto';
 import { LoginUserDto } from '../dto/login-user.dto';
 import { GetUser } from 'src/modules/auth/get-user.decorator'
 import { User } from '../entities/user.entity';
-
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
+  
+  private readonly frontendUrl: string = process.env.FRONTEND_URL || 'http://localhost:3000';
     constructor(
         private readonly authService: AuthService) { }
 
@@ -16,14 +18,15 @@ export class AuthController {
     async login(@Body() loginUserDto: LoginUserDto) {
         return this.authService.login(loginUserDto);
     }
-    @Post('activate')
-    async activate(@Query('token') token: string): Promise<{ message: string }> {
-        if (!token) {
-            throw new BadRequestException('Activation token is required');
-        }
 
-        await this.authService.activateAccount(token);
-        return { message: 'Account activated successfully' };
+    @Get('activate')
+    async activateAccount(@Query('token') token: string, @Res() res: Response): Promise<void> {
+      try {
+        const activatedUser = await this.authService.activateAccount(token);
+        res.redirect(`${this.frontendUrl}/`);
+      } catch (error) {
+        res.redirect(`${this.frontendUrl}/activation-failed`);
+      }
     }
 
     @Post('register')

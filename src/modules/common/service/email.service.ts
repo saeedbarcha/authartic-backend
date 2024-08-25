@@ -7,6 +7,7 @@ import { ReportProblemStatusEnum } from '../report-problem-status.enum';
 
 @Injectable()
 export class MailService {
+    private readonly backendUrl: string = process.env.BACKEND_URL;
     private readonly baseEmail: string = process.env.BASE_EMAIL;
     private readonly adminEmail: string = process.env.ADMIN_EMAIL;
     private mg;
@@ -37,7 +38,9 @@ export class MailService {
         await this.mg.messages.create(process.env.MAILGUN_DOMAIN, data);
     }
 
-    async sendActivationEmail(email: string, activationLink: string): Promise<void> {
+    async sendActivationEmail(email: string, token: string): Promise<void> {
+        const activationLink = `${this.backendUrl}/api/v1/auth/activate?token=${token}`;
+
         const data = {
             from: this.baseEmail,
             to: [email],

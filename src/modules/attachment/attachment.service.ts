@@ -10,7 +10,7 @@ import { GetAttachmentDto } from './dto/get-attachment.dto';
 
 @Injectable()
 export class AttachmentService {
-  private readonly baseUrl: string = process.env.BASE_URL || 'http://localhost:5000';
+  private readonly baseUrl: string = process.env.BACKEND_URL || 'http://localhost:5000';
 
   constructor(
     @InjectRepository(Attachment)
