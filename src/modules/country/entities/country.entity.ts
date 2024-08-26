@@ -1,6 +1,7 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { DefaultEntity } from 'src/modules/common/default.entity';
-import { User } from 'src/modules/auth/entities/user.entity';
+import { User } from 'src/modules/user/entities/user.entity';
+
 
 
 

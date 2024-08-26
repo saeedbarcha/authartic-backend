@@ -2,17 +2,16 @@ import * as archiver from 'archiver';
 import * as QRCode from 'qrcode';
 import * as PDFDocument from 'pdfkit';
 import e, { Response } from 'express';
-import { Injectable, Inject, NotFoundException, Res, BadRequestException, forwardRef } from '@nestjs/common';
+import { Injectable,  NotFoundException, Res, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository, DataSource } from 'typeorm';
-import { User } from '../../auth/entities/user.entity';
+import { User } from 'src/modules/user/entities/user.entity';
 import { Certificate } from '../entities/certificate.entity';
-import { CertificateService } from './certificate.service';
 import { CertificateInfo } from '../entities/certificate-info.entity';
 import { CreateCertificateInfoDto } from '../dto/create-certificate-info.dto';
 import { CertificateOwner } from '../entities/certificate-owner.entity';
 import { Attachment } from 'src/modules/attachment/entities/attachment.entity';
-import { UserRoleEnum } from 'src/modules/auth/enum/user.role.enum';
+import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
 import { GetAttachmentDto } from 'src/modules/attachment/dto/get-attachment.dto';
 import { AttachmentService } from 'src/modules/attachment/attachment.service';
 import { Readable } from 'stream';
@@ -39,7 +38,6 @@ export class CertificateInfoService {
     private readonly subscriptionStatusService: SubscriptionStatusService,
     private readonly mailService: MailService,
 
-    
   ) { }
 
  
@@ -284,7 +282,6 @@ export class CertificateInfoService {
     });
   }
 
-
   async reissueCertificate(
     id: number,
     number_of_certificate: number,
@@ -413,8 +410,6 @@ export class CertificateInfoService {
       await queryRunner.release();
     }
   }
-  
-  
 
   
   async getAllCertificateInfo(

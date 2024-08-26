@@ -8,6 +8,10 @@ import { ValidationCode } from 'src/modules/validation-code/entities/validation-
 
 @Entity()
 export class VendorInfo extends DefaultEntity {
+
+    @Column({ default: false })
+    is_verified_email: boolean;
+    
     @Column({ nullable: true })
     primary_content: string;
 

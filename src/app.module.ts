@@ -19,10 +19,12 @@ import { SubscriptionPlanModule } from './modules/subscription/subscription.modu
 import { AdminModule } from './modules/admin/admin.module';
 import { FontModule } from './modules/font/font.module';
 import { ContactModule } from './modules/contact/contact.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
     AuthModule,
+    UserModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),

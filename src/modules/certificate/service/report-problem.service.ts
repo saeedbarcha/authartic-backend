@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Connection } from 'typeorm';
-import { User } from 'src/modules/auth/entities/user.entity';
 import { CertificateInfo } from 'src/modules/certificate/entities/certificate-info.entity';
 import { ReportProblem } from '../entities/report-problem.entity';
 import { CreateReportProblemDto } from '../dto/create-report-problem.dto';
@@ -9,8 +8,9 @@ import { RespondReportProblemDto } from '../dto/respond-report-problem.dto';
 import { ReportProblemStatusEnum } from 'src/modules/common/report-problem-status.enum';
 import { MailService } from 'src/modules/common/service/email.service';
 import { checkIsAdmin } from 'src/utils/check-is-admin.util';
-import { UserService } from 'src/modules/auth/service/user.service';
 import { GetReportProblemDto } from '../dto/get-report-problem.dto';
+import { User } from 'src/modules/user/entities/user.entity';
+import { UserService } from 'src/modules/user/user.service';
 
 @Injectable()
 export class ReportProblemService {
@@ -154,7 +154,7 @@ export class ReportProblemService {
             user_name: report.vendor.user_name,
             email: report.vendor.email,
             role: report.vendor.role,
-            is_verified_email: report.vendor.is_verified_email,
+            is_verified_email: report.vendor.vendorInfo.is_verified_email,
           },
           certificate_info: {
             id: report.certificate_info.id,

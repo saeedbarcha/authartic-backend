@@ -1,7 +1,8 @@
 import { Entity, Column, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
 import { SubscriptionPlan } from './subscription-plan.entity';
 import { DefaultEntity } from 'src/modules/common/default.entity';
-import { User } from 'src/modules/auth/entities/user.entity';
+import { User } from 'src/modules/user/entities/user.entity';
+
 @Entity()
 export class SubscriptionStatus extends DefaultEntity {
     @Column({  default: 0 })

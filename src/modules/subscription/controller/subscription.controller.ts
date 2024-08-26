@@ -2,10 +2,10 @@ import { Controller, Get, Post, UseGuards, Body, Patch, Param, Delete, Query, Ba
 import { CreateSubscriptionPlanDto } from '../dto/create-subscription-plan.dto';
 import { UpdateSubscriptionPlanDto } from '../dto/update-subscription-plan.dto';
 import { GetUser } from '../../auth/get-user.decorator';
-import { User } from '../../auth/entities/user.entity';
 import { AuthGuard } from '@nestjs/passport';
 import { SubscriptionStatusService } from '../services/Subscription-status.service';
 import { SubscriptionPlanService } from '../services/subscription-plan.service';
+import { User } from 'src/modules/user/entities/user.entity';
 
 @Controller('subscription-plan')
 export class SubscriptionController {

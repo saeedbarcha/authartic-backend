@@ -7,8 +7,8 @@ import { UpdateFontDto } from './dto/update-font.dto';
 import { Font } from './entities/font.entity';
 import { plainToInstance } from 'class-transformer';
 import { GetFontDto } from './dto/get-font.dto';
-import { User } from '../auth/entities/user.entity';
 import { checkIsAdmin } from 'src/utils/check-is-admin.util';
+import { User } from '../user/entities/user.entity';
 
 
 @Injectable()

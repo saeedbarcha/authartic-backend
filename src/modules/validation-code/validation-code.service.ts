@@ -4,9 +4,9 @@ import { Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { CreateValidationCodeDto } from './dto/create-validation-code.dto';
 import { ValidationCode } from './entities/validation-code.entity';
-import { User } from '../auth/entities/user.entity';
 import { GetValidationCodeDto } from './dto/get-by-code.dto';
 import { checkIsAdmin } from 'src/utils/check-is-admin.util';
+import { User } from '../user/entities/user.entity';
 
 
 @Injectable()

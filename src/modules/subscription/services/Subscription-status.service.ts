@@ -8,14 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { User } from '../../auth/entities/user.entity';
-import { UserService } from '../../auth/service/user.service';
-import { UserRoleEnum } from '../../auth/enum/user.role.enum';
+import { UserService } from 'src/modules/user/user.service';
+import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
 import { SubscriptionStatus } from '../entities/subscription-status.entity';
 import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { SubscriptionPlanFeature } from '../entities/subscription-plan-feature.entity';
 import { UpdateSubscriptionStatusDto } from '../dto/update-subscription-status.dto';
 import { CreateSubscriptionStatusDto } from '../dto/create-subscription-status.dto';
+import { User } from 'src/modules/user/entities/user.entity';
 
 @Injectable()
 export class SubscriptionStatusService {
@@ -24,6 +24,8 @@ export class SubscriptionStatusService {
         private readonly subscriptionStatusRepository: Repository<SubscriptionStatus>,
         @InjectRepository(SubscriptionPlan)
         private readonly subscriptionPlanRepository: Repository<SubscriptionPlan>,
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
         @InjectRepository(SubscriptionPlanFeature)
         private readonly subscriptionPlanFeatureRepository: Repository<SubscriptionPlanFeature>,
         private readonly userService: UserService,
@@ -32,22 +34,28 @@ export class SubscriptionStatusService {
 
     async activatePlan(subscriptionPlanId: number, user: User): Promise<any> {
 
-    
         if (!subscriptionPlanId) {
             throw new BadRequestException('Subscription ID is required.');
         }
- 
+
 
         if (!user) {
             throw new UnauthorizedException('User token is required.');
         }
-     
 
         if (user.role !== UserRoleEnum.VENDOR) {
             throw new ForbiddenException('Only vendors can activate subscription plan.');
         }
 
-   
+        const isUser = await this.userRepository.findOne({
+            where: { id: user.id },
+            relations: ['vendorInfo'],
+        });
+
+
+        if (!isUser.vendorInfo.is_verified_email) {
+            throw new BadRequestException('Please verify your email first. We have sent an activation email to your email address.');
+        }
 
         const subscriptionPlan = await this.subscriptionPlanRepository.findOne({
             where: { id: subscriptionPlanId },
@@ -60,7 +68,7 @@ export class SubscriptionStatusService {
             throw new NotFoundException('Subscription plan not found.');
         }
 
-    
+
 
         if (!subscriptionPlan.subscriptionPlanFeatures) {
             throw new NotFoundException('No subscription plan features found.');
@@ -73,17 +81,17 @@ export class SubscriptionStatusService {
         if (!feature) {
             throw new NotFoundException('Feature "Free Monthly Certificates" not found.');
         }
-       
+
         const numberOfCertificates = feature.value ? parseInt(feature.value, 10) : 0;
 
-      
-        
+
+
         const userDetails = await this.userService.findUserById(user.id);
-      
+
         if (!userDetails.validation_code) {
             throw new NotFoundException('Your account is not verified.');
         }
-     
+
         let subscriptionStatus = await this.subscriptionStatusRepository.findOne({
             where: { user: { id: user.id } },
         });
@@ -120,7 +128,7 @@ export class SubscriptionStatusService {
             });
         }
 
-       
+
         return this.userService.findUserById(user.id);
 
     }

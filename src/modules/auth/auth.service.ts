@@ -3,38 +3,38 @@ import {
     Injectable,
     NotFoundException,
     UnauthorizedException
-    
+
 } from '@nestjs/common';
 import { ILike, Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from '../entities/user.entity';
-import { VendorInfo } from '../entities/vendor-info.entity';
-import { RegisterDto } from '../dto/register-user.dto';
-import { UserRoleEnum } from '../enum/user.role.enum';
-import { UserProfile } from '../entities/user-profile.entity';
+import { UserProfile } from 'src/modules/user/entities/user-profile.entity';
+import { VendorInfo } from 'src/modules/user/entities/vendor-info.entity';
+import { RegisterDto } from './dto/register-user.dto';
 import { Attachment } from 'src/modules/attachment/entities/attachment.entity';
 import { Country } from 'src/modules/country/entities/country.entity';
 import { JwtService } from '@nestjs/jwt';
-import { LoginUserDto } from '../dto/login-user.dto';
+import { LoginUserDto } from './dto/login-user.dto';
 import { ValidationCode } from 'src/modules/validation-code/entities/validation-code.entity';
-import { UserService } from './user.service';
 import { MailService } from 'src/modules/common/service/email.service';
+import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
+import { UserService } from 'src/modules/user/user.service';
+import { User } from '../user/entities/user.entity';
+
 
 @Injectable()
 export class AuthService {
-    private readonly baseUrl: string = process.env.BACKEND_URL || 'http://localhost:5000';
 
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        private jwtService: JwtService,
         @InjectRepository(ValidationCode)
         private readonly validationCodeRepository: Repository<ValidationCode>,
         private readonly userService: UserService,
         private readonly mailService: MailService,
+        private jwtService: JwtService,
         private readonly dataSource: DataSource
-    ) {}
+    ) { }
 
     async validateUser(email: string, pass: string, role: UserRoleEnum): Promise<any> {
         if (!email) {
@@ -79,11 +79,12 @@ export class AuthService {
         return { message: 'Logged out successfully' };
     }
 
+
     async register(registerDto: RegisterDto): Promise<Omit<User, 'password'>> {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
-
+    
         try {
             const {
                 user_name,
@@ -96,7 +97,7 @@ export class AuthService {
                 ...rest
             } = registerDto;
             const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-
+    
             if (!user_name) {
                 throw new BadRequestException('User name is required');
             } else if (!email) {
@@ -106,13 +107,13 @@ export class AuthService {
             } else if (!role) {
                 throw new BadRequestException('Role is required');
             }
-
+    
             const user = new User();
             user.user_name = user_name;
             user.email = email;
             user.password = hashedPassword;
             user.role = role;
-
+    
             if (country_id) {
                 const isCountry = await queryRunner.manager.findOne(Country, {
                     where: { id: country_id }
@@ -122,9 +123,9 @@ export class AuthService {
                 }
                 user.country = isCountry;
             }
-
+    
             const savedUser = await queryRunner.manager.save(user);
-
+    
             if (role === UserRoleEnum.USER) {
                 if (!rest.phone) {
                     throw new BadRequestException('Phone Number is required');
@@ -137,23 +138,25 @@ export class AuthService {
                 userProfile.phone = rest.phone;
                 userProfile.date_of_birth = rest.date_of_birth;
                 userProfile.user = savedUser;
-
+    
                 if (attachment_id) {
                     const attachment = await queryRunner.manager.findOne(Attachment, {
                         where: { id: attachment_id }
                     });
-                    if (!attachment) {
-                        userProfile.attachment = null;
+                    if (attachment) {
+                        userProfile.attachment = attachment;
                     }
-                    userProfile.attachment = attachment;
                 }
-
+    
                 if (!userProfile.phone || !userProfile.date_of_birth) {
                     throw new BadRequestException('Invalid phone or date of birth');
                 }
-                await queryRunner.manager.save(userProfile);
+    
+                const savedUserProfile = await queryRunner.manager.save(userProfile);
+                savedUser.userProfile = savedUserProfile; // Set the userProfile in the User entity
+                await queryRunner.manager.save(savedUser); // Update the user entity
             }
-
+    
             if (role === UserRoleEnum.VENDOR) {
                 if (!rest.primary_content) {
                     throw new BadRequestException('Primary content is required');
@@ -174,17 +177,16 @@ export class AuthService {
                 vendorInfo.social_media = rest.social_media;
                 vendorInfo.other_links = rest.other_links;
                 vendorInfo.user = savedUser;
-
+    
                 if (validation_code_id) {
                     const isValidationCode = await queryRunner.manager.findOne(ValidationCode, {
                         where: { id: validation_code_id, is_deleted: false, is_used: false }
                     });
-                    if (!isValidationCode) {
-                        vendorInfo.validationCode = null;
+                    if (isValidationCode) {
+                        vendorInfo.validationCode = isValidationCode;
                     }
-                    vendorInfo.validationCode = isValidationCode;
                 }
-
+    
                 if (attachment_id) {
                     const attachment = await queryRunner.manager.findOne(Attachment, {
                         where: { id: attachment_id }
@@ -194,20 +196,21 @@ export class AuthService {
                     }
                     vendorInfo.attachment = attachment;
                 }
-
-                await queryRunner.manager.save(vendorInfo);
+    
+                const savedVendorInfo = await queryRunner.manager.save(vendorInfo);
+                savedUser.vendorInfo = savedVendorInfo; // Set the vendorInfo in the User entity
+                await queryRunner.manager.save(savedUser); // Update the user entity
             }
-
+    
             const token = this.jwtService.sign({ email: user.email });
-           
             await this.mailService.sendActivationEmail(registerDto.email, token);
-
+    
             await queryRunner.commitTransaction();
-
+    
             if (savedUser && validation_code_id) {
                 await this.validationCodeRepository.update(validation_code_id, { is_used: true });
             }
-
+    
             return this.userService.findUserById(savedUser.id);
         } catch (error) {
             await queryRunner.rollbackTransaction();
@@ -224,42 +227,10 @@ export class AuthService {
             await queryRunner.release();
         }
     }
-
+    
     async findOneByEmail(email: string): Promise<User> {
         return this.userRepository.findOne({ where: { email } });
     }
 
-    async activateAccount(token: string): Promise<void> {
-        console.log("llllllllllll")
-        try {
-            const { email } = this.jwtService.verify(token);
-            const user = await this.userRepository.findOne({ where: { email } });
-
-            if (!user) {
-                throw new BadRequestException('Invalid token or user not found');
-            }
-
-            user.is_verified_email = true;
-            await this.userRepository.save(user);
-        } catch (error) {
-            throw new BadRequestException('Invalid or expired token');
-        }
-    }
-
-    async resendVerificationEmail(email: string): Promise<void> {
-        const user = await this.userRepository.findOne({ where: { email } });
-
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        if (user.is_verified_email) {
-            throw new BadRequestException('Email is already verified');
-        }
-
-        const token = this.jwtService.sign({ email: user.email });
-        const activationLink = `${this.baseUrl}/api/v1/auth/activate?token=${token}`;
-        await this.mailService.sendActivationEmail(email, activationLink);
-    }
 
 }

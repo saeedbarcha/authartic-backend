@@ -3,11 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCountryDto } from './dto/create-country.dto';
 import { Country } from './entities/country.entity';
-import { User } from '../auth/entities/user.entity';
 import { UpdateCountryDto } from './dto/update-country.dto';
 import { GetCountryDto } from './dto/get-country.dto';
 import { plainToInstance } from 'class-transformer';
 import { checkIsAdmin } from 'src/utils/check-is-admin.util';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class CountryService {

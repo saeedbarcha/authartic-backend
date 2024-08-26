@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { DefaultEntity } from 'src/modules/common/default.entity';
 import { Attachment } from 'src/modules/attachment/entities/attachment.entity';
-import { User } from 'src/modules/auth/entities/user.entity';
 import { Certificate } from './certificate.entity';
+import { User } from 'src/modules/user/entities/user.entity';
 
 @Entity()
 export class CertificateInfo extends DefaultEntity {

@@ -1,13 +1,13 @@
 import { Controller, Get, Req, BadRequestException, Post, Query, UseGuards, Request, Body, Patch, Param, Delete, Res } from '@nestjs/common';
 import { CertificateInfoService } from '../service/certificate-info.service';
 import { AuthGuard } from '@nestjs/passport';
-import { User } from '../../auth/entities/user.entity';
 import { GetUser } from '../../auth/get-user.decorator';
 import { CreateCertificateInfoDto } from '../dto/create-certificate-info.dto';
 import { Response } from 'express';
 import { GetCertificateInfoDto } from '../dto/get-certificate-info.dto';
 import { ParseIntPipe } from '@nestjs/common';
 import { ReissueCertificateDto } from '../dto/re-issue-certificate-info.dto';
+import { User } from 'src/modules/user/entities/user.entity';
 
 
 @UseGuards(AuthGuard('jwt'))

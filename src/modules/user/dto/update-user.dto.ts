@@ -1,5 +1,4 @@
 import { IsString, IsUrl, IsPhoneNumber, IsArray, IsEnum, IsNotEmpty, IsOptional, IsDateString, IsInt } from 'class-validator';
-import { UserRoleEnum } from '../enum/user.role.enum';
 
 export class UpdateUserDto {
     @IsOptional()

@@ -3,22 +3,19 @@ import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from 'src/modules/auth/get-user.decorator'
 import { CreateCountryDto } from '../country/dto/create-country.dto';
 import { CountryService } from '../country/country.service';
-import { User } from '../auth/entities/user.entity';
 import { UpdateCountryDto } from '../country/dto/update-country.dto';
 import { ValidationCodeService } from '../validation-code/validation-code.service';
 import { CreateValidationCodeDto } from '../validation-code/dto/create-validation-code.dto';
-import { VerifyVendorDto } from '../auth/dto/verify-vendor.dto';
-import { UserService } from '../auth/service/user.service';
 import { GetCountryDto } from '../country/dto/get-country.dto';
 import { FontService } from '../font/font.service';
 import { CreateFontDto } from '../font/dto/create-font.dto';
 import { GetFontDto } from '../font/dto/get-font.dto';
 import { UpdateFontDto } from '../font/dto/update-font.dto';
-import { SearchReportProblemDto } from '../certificate/dto/search-report-problem.dto';
 import { ReportProblemService } from '../certificate/service/report-problem.service';
-import { ReportProblem } from '../certificate/entities/report-problem.entity';
 import { RespondReportProblemDto } from '../certificate/dto/respond-report-problem.dto';
-import { GetReportProblemDto } from '../certificate/dto/get-report-problem.dto';
+import { User } from '../user/entities/user.entity';
+import { UserService } from '../user/user.service';
+import { VerifyVendorDto } from '../user/dto/verify-vendor.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('admin')

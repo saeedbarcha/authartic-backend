@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { UserRoleEnum } from 'src/modules/auth/enum/user.role.enum';
-import { User } from 'src/modules/auth/entities/user.entity';
+import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
 import * as bcrypt from 'bcrypt';
+import { User } from 'src/modules/user/entities/user.entity';
 
 @Injectable()
 export class UserSeederService {

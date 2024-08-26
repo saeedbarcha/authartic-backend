@@ -5,6 +5,10 @@ import { DefaultEntity } from 'src/modules/common/default.entity';
 
 @Entity()
 export class UserProfile extends DefaultEntity {
+
+    @Column({ default: false })
+    is_verified_email: boolean;
+    
     @Column({ nullable: true })
     phone: string;
 

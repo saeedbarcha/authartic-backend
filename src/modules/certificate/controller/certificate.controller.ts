@@ -1,9 +1,7 @@
-import { Controller,UseGuards,Query, Get, Req, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { CreateCertificateDto } from '../dto/create-certificate.dto';
-import { UpdateCertificateDto } from '../dto/update-certificate.dto';
+import { Controller,UseGuards,Query, Get,  Post, Param } from '@nestjs/common';
 import { CertificateService } from '../service/certificate.service';
 import { AuthGuard } from '@nestjs/passport';
-import { User } from '../../auth/entities/user.entity';
+import { User } from 'src/modules/user/entities/user.entity';
 import { GetUser } from '../../auth/get-user.decorator';
 
 @UseGuards(AuthGuard('jwt'))

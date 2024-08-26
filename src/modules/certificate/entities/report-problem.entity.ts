@@ -2,8 +2,8 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { DefaultEntity } from 'src/modules/common/default.entity';
 import { CertificateInfo } from 'src/modules/certificate/entities/certificate-info.entity';
-import { User } from 'src/modules/auth/entities/user.entity';
 import { ReportProblemStatusEnum } from 'src/modules/common/report-problem-status.enum';
+import { User } from 'src/modules/user/entities/user.entity';
 
 
 @Entity()

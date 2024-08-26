@@ -1,6 +1,7 @@
 import { Entity, Column, OneToOne, JoinColumn } from 'typeorm';
 import { DefaultEntity } from 'src/modules/common/default.entity';
-import { VendorInfo } from 'src/modules/auth/entities/vendor-info.entity';
+import { VendorInfo } from 'src/modules/user/entities/vendor-info.entity';
+
 
 @Entity()
 export class ValidationCode extends DefaultEntity {

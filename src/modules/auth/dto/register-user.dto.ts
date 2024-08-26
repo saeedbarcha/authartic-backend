@@ -1,6 +1,6 @@
 // src/auth/dto/signup.dto.ts
-import { IsString, IsUrl, IsEmail,IsPhoneNumber, IsArray, IsEnum, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
-import { UserRoleEnum } from '../enum/user.role.enum';
+import { IsString, IsUrl, IsEmail, IsArray, IsEnum, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
 
 export class RegisterDto {
     @IsNotEmpty()
