@@ -289,7 +289,7 @@ export class UserService {
         website_url: result.vendorInfo.website_url ? result.vendorInfo.website_url : null,
         social_media: result.vendorInfo.social_media ? result.vendorInfo.social_media : null,
         other_links: result.vendorInfo.other_links ? result.vendorInfo.other_links : null,
-
+        is_email_verified: result.vendorInfo.is_verified_email,
         vendor_logo: result.vendorInfo.attachment ? {
           id: result.vendorInfo.attachment?.id,
           url: result.vendorInfo.attachment?.url,
@@ -337,9 +337,9 @@ export class UserService {
         role: result.role,
         date_of_birth: result.userProfile.date_of_birth,
         phone: result.userProfile.phone,
+        is_email_verified: result.userProfile.is_verified_email,
         profile_image: result.userProfile.attachment ? {
           id: result.userProfile.attachment?.id,
-          is_email_verified: result.userProfile.is_verified_email,
           url: result.userProfile.attachment?.url,
           type: result.userProfile.attachment?.file_type
         } : null,
