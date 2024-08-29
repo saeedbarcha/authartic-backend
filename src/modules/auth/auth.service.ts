@@ -138,6 +138,7 @@ export class AuthService {
                 userProfile.phone = rest.phone;
                 userProfile.date_of_birth = rest.date_of_birth;
                 userProfile.user = savedUser;
+                userProfile.otp = Math.floor(1000 + Math.random() * 9000).toString();
     
                 if (attachment_id) {
                     const attachment = await queryRunner.manager.findOne(Attachment, {
@@ -153,8 +154,8 @@ export class AuthService {
                 }
     
                 const savedUserProfile = await queryRunner.manager.save(userProfile);
-                savedUser.userProfile = savedUserProfile; // Set the userProfile in the User entity
-                await queryRunner.manager.save(savedUser); // Update the user entity
+                savedUser.userProfile = savedUserProfile; 
+                await queryRunner.manager.save(savedUser); 
             }
     
             if (role === UserRoleEnum.VENDOR) {
@@ -198,13 +199,17 @@ export class AuthService {
                 }
     
                 const savedVendorInfo = await queryRunner.manager.save(vendorInfo);
-                savedUser.vendorInfo = savedVendorInfo; // Set the vendorInfo in the User entity
-                await queryRunner.manager.save(savedUser); // Update the user entity
+                savedUser.vendorInfo = savedVendorInfo; 
+                await queryRunner.manager.save(savedUser); 
             }
     
             const token = this.jwtService.sign({ email: user.email });
-            await this.mailService.sendActivationEmail(registerDto.email, token);
-    
+            if(savedUser.role === UserRoleEnum.USER){
+                await this.mailService.sendOtpEmail(registerDto.email, savedUser.userProfile.otp);
+            }else{
+                await this.mailService.sendActivationEmail(registerDto.email, token);
+            }
+           
             await queryRunner.commitTransaction();
     
             if (savedUser && validation_code_id) {

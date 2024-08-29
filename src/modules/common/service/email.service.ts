@@ -38,7 +38,7 @@ export class MailService {
     }
 
     async sendActivationEmail(email: string, token: string): Promise<void> {
-        const activationLink = `${this.backendUrl}/api/v1/user/activate?token=${token}`;
+        const activationLink = `${this.backendUrl}/api/v1/user/activate-vendor-account?token=${token}`;
 
         const data = {
             from: this.baseEmail,
@@ -62,36 +62,28 @@ export class MailService {
         await this.mg.messages.create(process.env.MAILGUN_DOMAIN, data);
     }
 
-    // async sendActivationEmail(email: string, token: string): Promise<void> {
-    //     const activationLink = `${this.backendUrl}/api/v1/user/activate?token=${token}`;
+    async sendOtpEmail(email: string, otp: string): Promise<void> {
+        const data = {
+            from: this.baseEmail,
+            to: [email],
+            subject: 'Account Verification - Your OTP Code',
+            text: `Welcome to Authartic! Your one-time password (OTP) for account verification is: ${otp}. Please use this code to verify your account. If you do not verify your account within 14 days, it will be deleted.`,
+            html: `
+                <div style="width: 100%; background-color: #22477F; padding: 10px 0; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Authartic</h1>
+                </div>
+                <div style="padding: 20px;">
+                    <p>Welcome to Authartic!</p>
+                    <p>Your one-time password (OTP) for account verification is:</p>
+                    <div style="font-size: 24px; font-weight: bold; margin: 10px 0;">${otp}</div>
+                    <p>Please use this code to verify your account. If you do not verify your account within 14 days, it will be deleted.</p>
+                </div>
+                <div style="width: 100%; height:20px; background-color: #22477F; padding: 2; text-align: center;"></div>
+            `,
+        };
     
-    //     const data = {
-    //         from: this.baseEmail,
-    //         to: [email],
-    //         subject: 'Account Activation',
-    //         text: `Welcome to Authartic! Please use the following link to activate your account: ${activationLink}. If you do not verify/activate your account within 14 days, it will be deleted.`,
-    //         html: `
-    //             <div style="width: 100%; background-color: #22477F; padding: 10px 0; text-align: center;">
-    //                 <h1 style="color: white; margin: 0;">Authartic</h1>
-    //             </div>
-    //             <div style="padding: 20px;">
-    //                 <p>Welcome to Authartic!</p>
-    //                 <p>Please click the below button to activate your account:</p>
-    //                 <a href="${activationLink}" style="display: inline-block; padding: 10px 20px; background-color: #22477F; color: white; text-decoration: none; border-radius: 5px;">Activate Account</a>
-    //                 <p>If you do not verify your account within 14 days, it will be deleted.</p>
-    //             </div>
-    //              <div style="width: 100%; height:20px; background-color: #22477F; padding: 2; text-align: center;"></div>
-    //         `,
-    //     };
-    
-    //     try {
-    //         console.log('Sending activation email to:', email);
-    //         await this.mg.messages.create(process.env.MAILGUN_DOMAIN, data);
-    //         console.log('Activation email sent successfully.');
-    //     } catch (error) {
-    //         console.error('Failed to send activation email:', error);
-    //     }
-    // }
+        await this.mg.messages.create(process.env.MAILGUN_DOMAIN, data);
+    }
     
     async sendCertificateInfoZip(email: string, zipBuffer: Buffer): Promise<void> {
         const data = {

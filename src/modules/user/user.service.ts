@@ -12,7 +12,10 @@ import { VerifyVendorDto } from './dto/verify-vendor.dto';
 import { UserRoleEnum } from 'src/modules/user/enum/user.role.enum';
 import { MailService } from '../common/service/email.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { UserProfile } from './entities/user-profile.entity';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+
 
 @Injectable()
 export class UserService {
@@ -46,9 +49,6 @@ export class UserService {
         throw new NotFoundException(`User with ID ${user.id} not found`);
       }
 
-
-
-
       existingUser.user_name = updateUserDto.user_name || existingUser.user_name;
 
 
@@ -63,6 +63,7 @@ export class UserService {
       if (existingUser.role === 'USER') {
         existingUser.userProfile.phone = updateUserDto.phone || existingUser.userProfile.phone;
         existingUser.userProfile.date_of_birth = new Date(updateUserDto.date_of_birth) || existingUser.userProfile.date_of_birth;
+
         if (updateUserDto.attachment_id) {
           const attachment = await queryRunner.manager.findOne(Attachment, { where: { id: updateUserDto.attachment_id } });
           if (!attachment) {
@@ -384,35 +385,100 @@ export class UserService {
 
     const { email } = this.jwtService.verify(token);
     const user = await this.userRepository.findOne({
-        where: { email },
-        relations: ['userProfile', 'vendorInfo']
+      where: { email },
+      relations: ['userProfile', 'vendorInfo']
     });
 
     if (!user) {
-        throw new BadRequestException('Invalid token or user not found');
+      throw new BadRequestException('Invalid token or user not found');
     }
 
     if (user.role === UserRoleEnum.USER) {
-        const isUserProfile = user.userProfile;
+      const isUserProfile = user.userProfile;
 
-        if (!isUserProfile) {
-            throw new BadRequestException('User profile not found');
-        }
+      if (!isUserProfile) {
+        throw new BadRequestException('User profile not found');
+      }
 
-        isUserProfile.is_verified_email = true;
-        await this.userProfileRepository.save(isUserProfile);
-    } 
-    if (user.role === UserRoleEnum.VENDOR) {
-        const isVendorInfo = user.vendorInfo;
-
-        if (!isVendorInfo) {
-            throw new BadRequestException('Vendor info not found');
-        }
-
-        isVendorInfo.is_verified_email = true;
-        await this.vendorInfoRepository.save(isVendorInfo);
+      isUserProfile.is_verified_email = true;
+      await this.userProfileRepository.save(isUserProfile);
     }
+    if (user.role === UserRoleEnum.VENDOR) {
+      const isVendorInfo = user.vendorInfo;
+
+      if (!isVendorInfo) {
+        throw new BadRequestException('Vendor info not found');
+      }
+
+      isVendorInfo.is_verified_email = true;
+      await this.vendorInfoRepository.save(isVendorInfo);
+    }
+  }
+
+  async activateAccountByUser(otp: string, user: User): Promise<{ message: string }> {
+    if (!otp) {
+        throw new BadRequestException('OTP is required.');
+    }
+
+    const userProfile = await this.userProfileRepository.findOne({
+        where: { user: { id: user.id } },
+    });
+
+    if (!userProfile) {
+        throw new NotFoundException('User profile not found.');
+    }
+
+    if (userProfile.is_verified_email) {
+        throw new NotFoundException('This account is already verified.');
+    }
+
+    if (userProfile.otp !== otp) {
+        throw new BadRequestException('Invalid OTP.');
+    }
+
+    userProfile.is_verified_email = true;
+
+    await this.userProfileRepository.save(userProfile);
+
+    return { message: 'Account successfully activated.' };
 }
+
+
+async resendOtpEmail(user: User): Promise<{ message: string }> {
+  const isUser = await this.userRepository.findOne({
+      where: { email: user.email },
+      relations: ['userProfile', 'vendorInfo'],
+  });
+
+  if (!isUser) {
+      throw new NotFoundException('User not found');
+  }
+
+  if (
+      (isUser.role === UserRoleEnum.USER && isUser?.userProfile?.is_verified_email) ||
+      (isUser.role === UserRoleEnum.VENDOR && isUser?.vendorInfo?.is_verified_email)
+  ) {
+      throw new BadRequestException('Email is already verified');
+  }
+
+  const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+
+  if (isUser.role === UserRoleEnum.USER) {
+      isUser.userProfile.otp = newOtp;
+      
+      await this.userProfileRepository.save(isUser.userProfile);
+  } else if (isUser.role === UserRoleEnum.VENDOR) {
+      isUser.vendorInfo.otp = newOtp;
+      await this.vendorInfoRepository.save(isUser.vendorInfo);
+  }
+
+  await this.mailService.sendOtpEmail(isUser.email, newOtp);
+
+  return { message: `OTP has been sent to ${isUser.email}.` };
+}
+
+
 
   async resendVerificationEmail(user: User): Promise<void> {
     const isUser = await this.userRepository.findOne({
@@ -433,5 +499,20 @@ export class UserService {
     const token = this.jwtService.sign({ email: isUser.email });
     await this.mailService.sendActivationEmail(isUser.email, token);
   }
+
+  async updatePassword( updateUserPasswordDto: UpdateUserPasswordDto, user: User): Promise<{ message: string }> {
+    const isUer = await this.userRepository.findOne({where:{id:user.id}});
+
+    if (!isUer) {
+        throw new NotFoundException('User not found');
+    }
+
+    const hashedPassword = await bcrypt.hash(updateUserPasswordDto.password, 10);
+
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+
+    return { message: 'Password updated successfully' };
+}
 
 }

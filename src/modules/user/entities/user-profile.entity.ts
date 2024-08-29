@@ -12,6 +12,9 @@ export class UserProfile extends DefaultEntity {
     @Column({ nullable: true })
     phone: string;
 
+    @Column({ nullable: true })
+    otp: string;
+
     @Column({ type: 'timestamp' })
     date_of_birth: Date;
 

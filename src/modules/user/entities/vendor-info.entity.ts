@@ -20,6 +20,9 @@ export class VendorInfo extends DefaultEntity {
 
     @Column({ nullable: true })
     about_brand: string;
+    
+    @Column({ nullable: true })
+    otp: string;
 
     @Column({ nullable: true })
     website_url: string;
