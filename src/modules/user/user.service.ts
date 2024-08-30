@@ -15,6 +15,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserProfile } from './entities/user-profile.entity';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { SearchEmailDto } from './dto/search-email.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 
 @Injectable()
@@ -381,7 +383,7 @@ export class UserService {
   }
 
 
-  async activateAccount(token: string): Promise<void> {
+  async activateVendorAccount(token: string): Promise<void> {
 
     const { email } = this.jwtService.verify(token);
     const user = await this.userRepository.findOne({
@@ -393,16 +395,6 @@ export class UserService {
       throw new BadRequestException('Invalid token or user not found');
     }
 
-    if (user.role === UserRoleEnum.USER) {
-      const isUserProfile = user.userProfile;
-
-      if (!isUserProfile) {
-        throw new BadRequestException('User profile not found');
-      }
-
-      isUserProfile.is_verified_email = true;
-      await this.userProfileRepository.save(isUserProfile);
-    }
     if (user.role === UserRoleEnum.VENDOR) {
       const isVendorInfo = user.vendorInfo;
 
@@ -437,14 +429,36 @@ export class UserService {
     }
 
     userProfile.is_verified_email = true;
-
+    userProfile.otp = "";
     await this.userProfileRepository.save(userProfile);
 
     return { message: 'Account successfully activated.' };
 }
 
 
-async resendOtpEmail(user: User): Promise<{ message: string }> {
+async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{ message: string }> {
+  const isUser = await this.userRepository.findOne({
+    where: { email: verifyOtpDto.email, role: verifyOtpDto.role },
+    relations: ['userProfile', 'vendorInfo'],
+  });
+
+  if (!isUser) {
+    throw new NotFoundException('User not found');
+  }
+
+  const userProfileOtp = isUser.userProfile?.otp;
+  const vendorInfoOtp = isUser.vendorInfo?.otp;
+
+  if (verifyOtpDto.otp === userProfileOtp || verifyOtpDto.otp === vendorInfoOtp) {
+    return { message: 'OTP verified successfully' };
+  } else {
+    throw new BadRequestException('Invalid OTP');
+  }
+}
+
+
+
+async reSendOtpEmail(user: User): Promise<{ message: string }> {
   const isUser = await this.userRepository.findOne({
       where: { email: user.email },
       relations: ['userProfile', 'vendorInfo'],
@@ -479,6 +493,33 @@ async resendOtpEmail(user: User): Promise<{ message: string }> {
 }
 
 
+async resendOtpEmailToBoth(searchEmailDto: SearchEmailDto): Promise<{ message: string }> {
+  const isUser = await this.userRepository.findOne({
+      where: { email: searchEmailDto.email, role:searchEmailDto.role },
+      relations: ['userProfile', 'vendorInfo'],
+  });
+
+  if (!isUser) {
+      throw new NotFoundException('User not found');
+  }
+
+
+  const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+
+  if (isUser.role === UserRoleEnum.USER) {
+      isUser.userProfile.otp = newOtp;
+      
+      await this.userProfileRepository.save(isUser.userProfile);
+  } else if (isUser.role === UserRoleEnum.VENDOR) {
+      isUser.vendorInfo.otp = newOtp;
+      await this.vendorInfoRepository.save(isUser.vendorInfo);
+  }
+
+  await this.mailService.sendOtpEmail(isUser.email, newOtp);
+
+  return { message: `OTP has been sent to ${isUser.email}.` };
+}
 
   async resendVerificationEmail(user: User): Promise<void> {
     const isUser = await this.userRepository.findOne({
@@ -490,9 +531,6 @@ async resendOtpEmail(user: User): Promise<{ message: string }> {
       throw new NotFoundException('User not found');
     }
 
-    if ((isUser.role === UserRoleEnum.USER) && isUser.userProfile.is_verified_email) {
-      throw new BadRequestException('Email is already verified');
-    }
     if ((isUser.role === UserRoleEnum.VENDOR) && isUser.vendorInfo.is_verified_email) {
       throw new BadRequestException('Email is already verified');
     }
@@ -500,19 +538,45 @@ async resendOtpEmail(user: User): Promise<{ message: string }> {
     await this.mailService.sendActivationEmail(isUser.email, token);
   }
 
-  async updatePassword( updateUserPasswordDto: UpdateUserPasswordDto, user: User): Promise<{ message: string }> {
-    const isUer = await this.userRepository.findOne({where:{id:user.id}});
 
-    if (!isUer) {
+async updatePassword( updateUserPasswordDto: UpdateUserPasswordDto): Promise<{ message: string }> {
+    const isUser = await this.userRepository.findOne({where:{email:updateUserPasswordDto.email, role:updateUserPasswordDto.role}});
+
+    if (!isUser) {
         throw new NotFoundException('User not found');
     }
 
     const hashedPassword = await bcrypt.hash(updateUserPasswordDto.password, 10);
 
-    user.password = hashedPassword;
-    await this.userRepository.save(user);
+    isUser.password = hashedPassword;
+    await this.userRepository.save(isUser);
 
     return { message: 'Password updated successfully' };
 }
+
+async SearchIsEmail(searchEmailDto: SearchEmailDto): Promise<string[]> {
+  const user = await this.userRepository.findOne({ 
+    where: { email: searchEmailDto.email, role: searchEmailDto.role }
+  });
+
+  if (user) {
+    return [user.email];
+  }
+
+  const similarEmails = await this.userRepository
+    .createQueryBuilder('user')
+    .select('user.email')
+    .where('user.email LIKE :email', { email: `%${searchEmailDto.email.split('@')[0]}%` })
+    .andWhere('user.role = :role', { role: searchEmailDto.role })
+    .limit(3)
+    .getMany();
+
+  if (similarEmails.length === 0) {
+    throw new NotFoundException('No matching emails found.');
+  }
+
+  return similarEmails.map(user => user.email);
+}
+
 
 }

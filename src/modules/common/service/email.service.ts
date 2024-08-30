@@ -38,7 +38,7 @@ export class MailService {
     }
 
     async sendActivationEmail(email: string, token: string): Promise<void> {
-        const activationLink = `${this.backendUrl}/api/v1/user/activate-vendor-account?token=${token}`;
+        const activationLink = `${this.backendUrl}/api/v1/user/activate?token=${token}`;
 
         const data = {
             from: this.baseEmail,

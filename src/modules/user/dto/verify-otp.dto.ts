@@ -1,7 +1,7 @@
 import { IsString,  IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
 import { UserRoleEnum } from '../enum/user.role.enum';
 
-export class UpdateUserPasswordDto {
+export class VerifyOtpDto {
 
     @IsNotEmpty()
     @IsEmail()
@@ -9,7 +9,7 @@ export class UpdateUserPasswordDto {
 
     @IsNotEmpty()
     @IsString()
-    password: string;
+    otp: string;
 
     @IsNotEmpty()
     @IsEnum(UserRoleEnum)
