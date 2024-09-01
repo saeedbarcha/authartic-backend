@@ -2,7 +2,7 @@ import * as archiver from 'archiver';
 import * as QRCode from 'qrcode';
 import * as PDFDocument from 'pdfkit';
 import e, { Response } from 'express';
-import { Injectable,  NotFoundException, Res, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, Res, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository, DataSource } from 'typeorm';
 import { User } from 'src/modules/user/entities/user.entity';
@@ -40,12 +40,12 @@ export class CertificateInfoService {
 
   ) { }
 
- 
+
   async create(createCertificateInfoDto: CreateCertificateInfoDto, user: User, res: Response): Promise<CertificateInfo> {
     if (user.role !== UserRoleEnum.VENDOR) {
       throw new BadRequestException('Only VENDOR can create certificate ID');
     }
-  
+
     const isVendor = await this.userRepository.findOne({
       where: { id: user.id },
       relations: [
@@ -58,23 +58,23 @@ export class CertificateInfoService {
         'subscriptionStatus.subscriptionPlan.subscriptionPlanFeatures',
       ],
     });
-  
+
     if (!isVendor.vendorInfo.validationCode) {
       throw new BadRequestException('Your Account is not verified yet');
     }
-  
+
     if (!isVendor.subscriptionStatus) {
       throw new BadRequestException(`You don't have any active plan`);
     }
-  
+
     if (isVendor.subscriptionStatus.is_expired) {
       throw new BadRequestException('Your subscription plan has expired. Please upgrade now.');
     }
-  
+
     if (isVendor.subscriptionStatus.remaining_certificates < createCertificateInfoDto.number_of_certificate) {
       throw new BadRequestException(`You have only ${isVendor.subscriptionStatus.remaining_certificates} certificate${isVendor.subscriptionStatus.remaining_certificates === 1 ? '' : 's'}.`);
     }
-  
+
     if (!createCertificateInfoDto.name) {
       throw new BadRequestException('Name is required');
     }
@@ -99,20 +99,20 @@ export class CertificateInfoService {
     if (!createCertificateInfoDto.product_sell) {
       throw new BadRequestException('Product primarily sell is required');
     }
-  
+
     const queryRunner = this.dataSource.createQueryRunner();
-  
+
     // Connect and start a transaction
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       const productImage = await this.attachmentRepository.findOne({ where: { id: createCertificateInfoDto.product_image_id } });
-  
+
       if (!productImage) {
         throw new BadRequestException('Product image is not found');
       }
-  
+
       const newCertificateInfo = new CertificateInfo();
       newCertificateInfo.name = createCertificateInfoDto.name;
       newCertificateInfo.description = createCertificateInfoDto.description;
@@ -124,141 +124,100 @@ export class CertificateInfoService {
       newCertificateInfo.saved_draft = createCertificateInfoDto.saved_draft;
       newCertificateInfo.created_by_vendor = user;
       newCertificateInfo.product_image = productImage;
-  
+
       if (createCertificateInfoDto.saved_draft) {
         newCertificateInfo.issued = 0;
         newCertificateInfo.issued_date = null;
       } else {
         newCertificateInfo.issued = createCertificateInfoDto.number_of_certificate;
       }
-  
+
       if (createCertificateInfoDto.custom_bg) {
         const customBg = await this.attachmentRepository.findOne({ where: { id: createCertificateInfoDto.custom_bg } });
-  
+
         if (!customBg) {
           throw new BadRequestException('Background image not found');
         }
         newCertificateInfo.custom_bg = customBg;
       }
-  
+
       // Save new certificate info
       await queryRunner.manager.save(newCertificateInfo);
-  
+
       // Process QR codes and certificates
       const qrCodes = [];
-      const pdfBuffers: Buffer[] = [];  // Declare pdfBuffers only once
+      const pdfBuffers: Buffer[] = [];
       for (let i = 0; i < createCertificateInfoDto.number_of_certificate; i++) {
         const newCertificate = new Certificate();
         newCertificate.serial_number = `SN-${i + 1}-${Date.now()}`;
         newCertificate.certificateInfo = newCertificateInfo;
-  
+
         const savedCertificate = await queryRunner.manager.save(newCertificate);
-  
-        const qrCodeDataUrl = await QRCode.toDataURL(`${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`);
-        const qrCodeBuffer = Buffer.from(qrCodeDataUrl.split(",")[1], 'base64');
-  
-        const qrCodeFile: Express.Multer.File = {
-          buffer: qrCodeBuffer,
-          originalname: 'qrcode.png',
-          mimetype: 'image/png',
-          size: qrCodeBuffer.length,
-          fieldname: 'qr_code',
-          encoding: '7bit',
-          stream: Readable.from(qrCodeBuffer),
-          destination: '',
-          filename: 'qrcode.png',
-          path: '',
-        };
-  
-        const qrCodeAttachment: GetAttachmentDto = await this.attachmentService.upload(qrCodeFile, 'photo');
-  
-        const isAttachmentUploaded = await this.attachmentRepository.findOne({
-          where: {
-            id: qrCodeAttachment.id,
-          },
-        });
-        newCertificate.qr_code = isAttachmentUploaded;
-  
+
+        const qrCodeDataUrl = `${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`;
+
+        newCertificate.qr_code = qrCodeDataUrl;
+
         await queryRunner.manager.save(newCertificate);
-  
+
         const newCertificateOwner = new CertificateOwner();
         newCertificateOwner.certificate = savedCertificate;
         newCertificateOwner.is_owner = true;
         newCertificateOwner.user = user;
-  
+
         await queryRunner.manager.save(newCertificateOwner);
-  
+
         qrCodes.push({ qrCode: qrCodeDataUrl, id: newCertificate.id });
       }
-  
-      // Update subscription status
+
       const subscriptionStatus = isVendor.subscriptionStatus;
       const createSubscriptionStatusDto = new CreateSubscriptionStatusDto();
       createSubscriptionStatusDto.total_certificates_issued = subscriptionStatus.total_certificates_issued + createCertificateInfoDto.number_of_certificate;
       createSubscriptionStatusDto.remaining_certificates = subscriptionStatus.remaining_certificates - createCertificateInfoDto.number_of_certificate;
-  
-      // Generate PDF buffers and ZIP
-      pdfBuffers.push(...await this.generatePDFBuffers(qrCodes, createCertificateInfoDto.name, createCertificateInfoDto.description));
+
+      pdfBuffers.push(...await this.generateSVGBuffers(qrCodes, createCertificateInfoDto.name, createCertificateInfoDto.description));
       const zipBuffer = await this.generateZipBuffer(pdfBuffers);
-  
-      // Send email
+
       try {
         await this.mailService.sendCertificateInfoZip(user.email, zipBuffer);
       } catch (emailError) {
         throw new BadRequestException('Failed to send email. Certificates were not created.');
       }
-  
+
       await this.subscriptionStatusService.updateSubscriptionStatus(subscriptionStatus.id, createCertificateInfoDto.number_of_certificate, createSubscriptionStatusDto);
-  
-      // Commit the transaction
+
       await queryRunner.commitTransaction();
-  
+
       res.status(201).json({
         message: `Certificates created and sent to ${user.email}`,
       });
-  
+
       return newCertificateInfo;
     } catch (error) {
-      // Rollback the transaction on error
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {
-      // Release the query runner
       await queryRunner.release();
     }
   }
-  
-  
-  
-  private async generatePDFBuffers(qrCodes: { qrCode: string, id: number }[], name: string, description: string): Promise<Buffer[]> {
-    const pdfBuffers: Buffer[] = [];
-    for (const qrCodeData of qrCodes) {
-      const doc = new PDFDocument();
-      const buffers: Buffer[] = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(buffers);
-        pdfBuffers.push(pdfBuffer);
-      });
 
-      doc.fontSize(20).text(`Name: ${name}`, 100, 50);
-      doc.fontSize(20).text(`Description: ${description}`, 100, 80);
-      doc.fontSize(15).text(`id: ${qrCodeData.id}`, 100, 150);
-      doc.image(qrCodeData.qrCode, {
-        fit: [100, 100],
-        align: 'center',
-        valign: 'center',
-      });
-      doc.end();
+  private async generateSVGBuffers(qrCodes: { qrCode: string, id: number }[], name: string, description: string): Promise<Buffer[]> {
+    const svgBuffers: Buffer[] = [];
+    for (const qrCodeData of qrCodes) {
+      console.log("qrCodeDatallllllll.....", qrCodeData)
+      const qrCodeImageUrl = await QRCode.toDataURL(qrCodeData.qrCode);
+      const svgContent = `
+        <svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100%" height="100%" fill="white"/>
+          <text x="20" y="40" font-family="Arial" font-size="24" fill="black">Name: ${name}</text>
+          <text x="20" y="80" font-family="Arial" font-size="24" fill="black">Description: ${description}</text>
+          <text x="20" y="120" font-family="Arial" font-size="20" fill="black">ID: ${qrCodeData.id}</text>
+          <image x="20" y="160" width="150" height="150" href="${qrCodeImageUrl}" />
+        </svg>
+      `;
+      svgBuffers.push(Buffer.from(svgContent));
     }
-    return new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (pdfBuffers.length === qrCodes.length) {
-          clearInterval(interval);
-          resolve(pdfBuffers);
-        }
-      }, 100);
-    });
+    return svgBuffers;
   }
 
   private async generateZipBuffer(pdfBuffers: Buffer[]): Promise<Buffer> {
@@ -267,7 +226,7 @@ export class CertificateInfoService {
     archive.on('data', zipBuffers.push.bind(zipBuffers));
 
     pdfBuffers.forEach((pdfBuffer, index) => {
-      archive.append(pdfBuffer, { name: `certificate${index + 1}.pdf` });
+      archive.append(pdfBuffer, { name: `certificate${index + 1}.svg` });
     });
     archive.finalize();
 
@@ -291,7 +250,7 @@ export class CertificateInfoService {
     if (!id) {
       throw new BadRequestException('Certificate ID is required.');
     }
-  
+
     const isVendor = await this.userRepository.findOne({
       where: { id: user.id, role: UserRoleEnum.VENDOR },
       relations: [
@@ -300,19 +259,19 @@ export class CertificateInfoService {
         'subscriptionStatus.subscriptionPlan.subscriptionPlanFeatures',
       ],
     });
-  
+
     if (!isVendor) {
       throw new BadRequestException(`Vendor with ID ${user.id} not found or not authorized.`);
     }
-  
+
     if (isVendor.subscriptionStatus.is_expired) {
       throw new BadRequestException('Your subscription plan has expired. Please upgrade now.');
     }
-  
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       let certificateInfo = await this.certificateInfoRepository.findOne({
         where: {
@@ -321,87 +280,66 @@ export class CertificateInfoService {
         },
         relations: ['created_by_vendor', 'product_image', 'custom_bg'],
       });
-  
+
       if (!certificateInfo) {
         throw new NotFoundException(`Certificate with ID ${id} not found.`);
       }
-  
+
       const qrCodes = [];
       const pdfBuffers: Buffer[] = [];
-  
+
       for (let i = 0; i < number_of_certificate; i++) {
         const newCertificate = new Certificate();
         newCertificate.serial_number = `SN-${i + 1}-${Date.now()}`;
         newCertificate.certificateInfo = certificateInfo;
-  
+
         const savedCertificate = await queryRunner.manager.save(newCertificate);
-  
-        const qrCodeDataUrl = await QRCode.toDataURL(`${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`);
-        const qrCodeBuffer = Buffer.from(qrCodeDataUrl.split(",")[1], 'base64');
-  
-        const qrCodeFile: Express.Multer.File = {
-          buffer: qrCodeBuffer,
-          originalname: 'qrcode.png',
-          mimetype: 'image/png',
-          size: qrCodeBuffer.length,
-          fieldname: 'qr_code',
-          encoding: '7bit',
-          stream: Readable.from(qrCodeBuffer),
-          destination: '',
-          filename: 'qrcode.png',
-          path: '',
-        };
-  
-        const qrCodeAttachment: GetAttachmentDto = await this.attachmentService.upload(qrCodeFile, 'photo');
-  
-        const isAttachmentUploaded = await this.attachmentRepository.findOne({
-          where: {
-            id: qrCodeAttachment.id,
-          },
-        });
-        newCertificate.qr_code = isAttachmentUploaded;
-  
+
+        const qrCodeDataUrl = `${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`;
+
+        newCertificate.qr_code = qrCodeDataUrl;
+
         await queryRunner.manager.save(newCertificate);
-  
+
         const newCertificateOwner = new CertificateOwner();
         newCertificateOwner.certificate = savedCertificate;
         newCertificateOwner.is_owner = true;
         newCertificateOwner.user = user;
-  
+
         await queryRunner.manager.save(newCertificateOwner);
-  
+
         qrCodes.push({ qrCode: qrCodeDataUrl, id: newCertificate.id });
       }
-  
+
       certificateInfo.saved_draft = false;
       certificateInfo.issued += number_of_certificate;
-  
+
       await queryRunner.manager.save(certificateInfo);
-  
+
       const subscriptionStatus = isVendor.subscriptionStatus;
       const updateSubscriptionStatusDto = new UpdateSubscriptionStatusDto();
       updateSubscriptionStatusDto.total_certificates_issued = subscriptionStatus.total_certificates_issued + number_of_certificate;
       updateSubscriptionStatusDto.remaining_certificates = subscriptionStatus.remaining_certificates - number_of_certificate;
-  
+
       await this.subscriptionStatusService.updateSubscriptionStatus(subscriptionStatus.id, number_of_certificate, updateSubscriptionStatusDto);
-  
+
       // Generate PDF buffers and ZIP
-      pdfBuffers.push(...await this.generatePDFBuffers(qrCodes, certificateInfo.name, certificateInfo.description));
+      pdfBuffers.push(...await this.generateSVGBuffers(qrCodes, certificateInfo.name, certificateInfo.description));
       const zipBuffer = await this.generateZipBuffer(pdfBuffers);
-  
+
       // Send email
       try {
         await this.mailService.sendCertificateInfoZip(user.email, zipBuffer);
       } catch (emailError) {
         throw new BadRequestException('Failed to send email. Certificates were not created.');
       }
-  
+
       // Commit transaction after successful email send
       await queryRunner.commitTransaction();
       res.status(201).json({
         message: `Certificates reissued and sent to ${user.email}`,
       });
-  
+
     } catch (error) {
       // Rollback transaction if any error occurs
       await queryRunner.rollbackTransaction();
@@ -411,7 +349,7 @@ export class CertificateInfoService {
     }
   }
 
-  
+
   async getAllCertificateInfo(
     name: string | null,
     saved_draft: boolean | false,
