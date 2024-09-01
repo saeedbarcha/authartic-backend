@@ -53,7 +53,6 @@ export class CertificateService {
       relations: [
         'certificateInfo',
         'owners',
-        'qr_code',
         'owners.user',
         'certificateInfo.product_image',
         'certificateInfo.created_by_vendor',
