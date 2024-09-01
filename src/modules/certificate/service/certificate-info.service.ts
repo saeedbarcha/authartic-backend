@@ -203,7 +203,6 @@ export class CertificateInfoService {
   private async generateSVGBuffers(qrCodes: { qrCode: string, id: number }[], name: string, description: string): Promise<Buffer[]> {
     const svgBuffers: Buffer[] = [];
     for (const qrCodeData of qrCodes) {
-      console.log("qrCodeDatallllllll.....", qrCodeData)
       const qrCodeImageUrl = await QRCode.toDataURL(qrCodeData.qrCode);
       const svgContent = `
         <svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
