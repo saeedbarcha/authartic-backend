@@ -38,12 +38,7 @@ export function transformGetCertificateToDto(certificate: Certificate): GetCerti
             name: owner?.user?.user_name,
             is_owner: owner?.is_owner,
         })),
-        qr_code: {
-            id: certificate?.qr_code?.id,
-            url: certificate?.qr_code?.url,
-            file_type: certificate?.qr_code?.file_type,
-            file_name: certificate?.qr_code?.file_name,
-        },
+        qr_code: certificate?.qr_code,
     }, { excludeExtraneousValues: true });
 }
 
