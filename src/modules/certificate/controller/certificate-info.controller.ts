@@ -29,7 +29,17 @@ export class CertificateInfoController {
     @Res() res: Response
   ): Promise<void> {
     const { number_of_certificate } = reissueCertificateDto;
-    await this.certificateInfoService.reissueCertificate(id, number_of_certificate, user, res);
+    await this.certificateInfoService.reIssueCertificate(id, number_of_certificate, user, res);
+  }
+
+  @Post('certificate/:id/re-issue-existing')
+  async reissueExistingCertificate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('certificate_id') certificate_id: number,
+    @GetUser() user: User,
+    @Res() res: Response
+  ): Promise<void> {
+    await this.certificateInfoService.reIssueExistingCertificate(id, certificate_id, user, res);
   }
 
 
