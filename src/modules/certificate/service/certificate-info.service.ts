@@ -144,47 +144,50 @@ export class CertificateInfoService {
       await queryRunner.manager.save(newCertificateInfo);
 
       // Process QR codes and certificates
-      const qrCodes = [];
-      const svgBuffers: Buffer[] = [];
-      for (let i = 0; i < createCertificateInfoDto.number_of_certificate; i++) {
-        const newCertificate = new Certificate();
-        newCertificate.serial_number = `SN-${i + 1}-${Date.now()}`;
-        newCertificate.certificateInfo = newCertificateInfo;
+      if (!newCertificateInfo.saved_draft || createCertificateInfoDto.number_of_certificate <= 0 ) {
 
-        const savedCertificate = await queryRunner.manager.save(newCertificate);
 
-        const qrCodeDataUrl = `${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`;
+        const qrCodes = [];
+        const svgBuffers: Buffer[] = [];
+        for (let i = 0; i < createCertificateInfoDto.number_of_certificate; i++) {
+          const newCertificate = new Certificate();
+          newCertificate.serial_number = `SN-${i + 1}-${Date.now()}`;
+          newCertificate.certificateInfo = newCertificateInfo;
 
-        newCertificate.qr_code = qrCodeDataUrl;
+          const savedCertificate = await queryRunner.manager.save(newCertificate);
 
-        await queryRunner.manager.save(newCertificate);
+          const qrCodeDataUrl = `${this.baseUrl}/api/v1/certificate/claim-certificate/${savedCertificate.id}/scan`;
 
-        const newCertificateOwner = new CertificateOwner();
-        newCertificateOwner.certificate = savedCertificate;
-        newCertificateOwner.is_owner = true;
-        newCertificateOwner.user = user;
+          newCertificate.qr_code = qrCodeDataUrl;
 
-        await queryRunner.manager.save(newCertificateOwner);
+          await queryRunner.manager.save(newCertificate);
 
-        qrCodes.push({ qrCode: qrCodeDataUrl, id: newCertificate.id });
+          const newCertificateOwner = new CertificateOwner();
+          newCertificateOwner.certificate = savedCertificate;
+          newCertificateOwner.is_owner = true;
+          newCertificateOwner.user = user;
+
+          await queryRunner.manager.save(newCertificateOwner);
+
+          qrCodes.push({ qrCode: qrCodeDataUrl, id: newCertificate.id });
+        }
+
+        const subscriptionStatus = isVendor.subscriptionStatus;
+        const createSubscriptionStatusDto = new CreateSubscriptionStatusDto();
+        createSubscriptionStatusDto.total_certificates_issued = subscriptionStatus.total_certificates_issued + createCertificateInfoDto.number_of_certificate;
+        createSubscriptionStatusDto.remaining_certificates = subscriptionStatus.remaining_certificates - createCertificateInfoDto.number_of_certificate;
+
+        svgBuffers.push(...await this.generateSVGBuffers(qrCodes, createCertificateInfoDto.name, createCertificateInfoDto.description));
+        const zipBuffer = await this.generateZipBuffer(svgBuffers);
+
+        try {
+          await this.mailService.sendCertificateInfoZip(user.email, zipBuffer);
+        } catch (emailError) {
+          throw new BadRequestException('Failed to send email. Certificates were not created.');
+        }
+
+        await this.subscriptionStatusService.updateSubscriptionStatus(subscriptionStatus.id, createCertificateInfoDto.number_of_certificate, createSubscriptionStatusDto);
       }
-
-      const subscriptionStatus = isVendor.subscriptionStatus;
-      const createSubscriptionStatusDto = new CreateSubscriptionStatusDto();
-      createSubscriptionStatusDto.total_certificates_issued = subscriptionStatus.total_certificates_issued + createCertificateInfoDto.number_of_certificate;
-      createSubscriptionStatusDto.remaining_certificates = subscriptionStatus.remaining_certificates - createCertificateInfoDto.number_of_certificate;
-
-      svgBuffers.push(...await this.generateSVGBuffers(qrCodes, createCertificateInfoDto.name, createCertificateInfoDto.description));
-      const zipBuffer = await this.generateZipBuffer(svgBuffers);
-
-      try {
-        await this.mailService.sendCertificateInfoZip(user.email, zipBuffer);
-      } catch (emailError) {
-        throw new BadRequestException('Failed to send email. Certificates were not created.');
-      }
-
-      await this.subscriptionStatusService.updateSubscriptionStatus(subscriptionStatus.id, createCertificateInfoDto.number_of_certificate, createSubscriptionStatusDto);
-
       await queryRunner.commitTransaction();
 
       res.status(201).json({

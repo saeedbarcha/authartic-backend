@@ -204,11 +204,11 @@ export class AuthService {
             }
     
             const token = this.jwtService.sign({ email: user.email });
-            if(savedUser.role === UserRoleEnum.USER){
-                await this.mailService.sendOtpEmail(registerDto.email, savedUser.userProfile.otp);
-            }else{
-                await this.mailService.sendActivationEmail(registerDto.email, token);
-            }
+            // if(savedUser.role === UserRoleEnum.USER){
+            //     await this.mailService.sendOtpEmail(registerDto.email, savedUser.userProfile.otp);
+            // }else{
+            //     await this.mailService.sendActivationEmail(registerDto.email, token);
+            // }
            
             await queryRunner.commitTransaction();
     
